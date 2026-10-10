@@ -71,7 +71,7 @@ h1 { font-size: 1.1rem; font-weight: 700; margin: 0; letter-spacing: .02em; }
 .tabs { display: inline-flex; gap: 4px; padding: 4px; background: var(--surface-2); border-radius: 10px; }
 .tab {
   font-family: var(--font-body); font-size: .92rem; font-weight: 500; cursor: pointer;
-  border: 0; border-radius: 7px; padding: 9px 18px; background: transparent; color: var(--muted);
+  border: 0; border-radius: 7px; padding: 9px 16px; background: transparent; color: var(--muted);
 }
 .tab[aria-selected="true"] { background: var(--surface); color: var(--accent); font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 
@@ -91,7 +91,7 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px s
 }
 .in { font-family: var(--font-num); }
 select { font-family: var(--font-body); }
-#expr { font-size: 1.25rem; font-weight: 500; padding: 12px; }
+#expr, #texpr { font-size: 1.25rem; font-weight: 500; padding: 12px; }
 
 .result { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .big { font-family: var(--font-num); font-size: 2rem; font-weight: 600; color: var(--accent); overflow-wrap: anywhere; line-height: 1.15; font-variant-numeric: tabular-nums; }
@@ -170,6 +170,7 @@ th.r { text-align: right; }
     <div class="tabs" role="tablist" aria-label="功能切換">
       <button class="tab" id="tab-calc" role="tab" aria-selected="true" aria-controls="view-calc" type="button">計算機</button>
       <button class="tab" id="tab-income" role="tab" aria-selected="false" aria-controls="view-income" type="button" tabindex="-1">收益計算</button>
+      <button class="tab" id="tab-time" role="tab" aria-selected="false" aria-controls="view-time" type="button" tabindex="-1">時間計算</button>
     </div>
   </div>
 
@@ -295,6 +296,39 @@ th.r { text-align: right; }
         </div>
 
         <p class="note">總收益 = 收益速率 ÷ 速率時間 × 持續時間 × 加成倍率。單位與右側對照表、自訂單位共用，修改自訂單位後這裡也會同步。</p>
+      </section>
+
+      <!-- 分頁 3：時間計算機 -->
+      <section id="view-time" role="tabpanel" aria-labelledby="tab-time" class="app" hidden>
+        <div class="panel">
+          <label class="cap" for="texpr">時間算式（範例已填入，可直接修改）</label>
+          <input id="texpr" class="in" type="text" value="100秒*200" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="tOut">
+          <div class="result">
+            <div id="tOut" class="big" aria-live="polite">—</div>
+            <div id="tFull" class="sub"></div>
+          </div>
+          <div class="chips p" id="tchips"></div>
+          <div class="field">
+            <label class="cap" for="tins">插入大數單位（可當倍數，例如 100秒*2K）</label>
+            <select id="tins" class="unitpick" data-target="texpr"></select>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="pad" id="tpad"></div>
+        </div>
+
+        <div class="panel" id="tTable" hidden>
+          <span class="cap">換算</span>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>單位</th><th class="r">數值</th></tr></thead>
+              <tbody id="tBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <p class="note">時間單位：秒（s）、分（m、min、分鐘）、時（h、hr、小時）、天（d）、週（w），中英文都可以。可以連寫，例如 1h30m 或 1小時30分。時間可以加減時間、乘除數字，也可以除以時間得到倍數（8h/30s）。注意大寫 M 是百萬，小寫 m 是分鐘。</p>
       </section>
     </div>
 
@@ -534,12 +568,12 @@ th.r { text-align: right; }
     try { el.setSelectionRange(p, p); } catch (x) {}
     el.dispatchEvent(new Event("input", { bubbles: true }));
   }
-  function backspace() {
-    var s = inp.selectionStart || 0, e = inp.selectionEnd || 0;
+  function backspaceOn(el) {
+    var s = el.selectionStart || 0, e = el.selectionEnd || 0;
     if (s === e && s > 0) s -= 1;
-    inp.value = inp.value.slice(0, s) + inp.value.slice(e);
-    inp.focus(); inp.setSelectionRange(s, s);
-    update();
+    el.value = el.value.slice(0, s) + el.value.slice(e);
+    el.focus(); el.setSelectionRange(s, s);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
   }
   function commit() {
     if (current === null) return;
@@ -624,22 +658,151 @@ th.r { text-align: right; }
       tr.appendChild(a); tr.appendChild(c); body.appendChild(tr);
     });
   }
+  /* ---------- 分頁 3：時間計算機 ---------- */
+  var TU = {s:1,S:1,sec:1,"秒":1,m:60,min:60,"分":60,"分鐘":60,h:3600,H:3600,hr:3600,"時":3600,"小時":3600,d:86400,D:86400,day:86400,"天":86400,"日":86400,w:604800,W:604800,wk:604800,"週":604800,"周":604800};
+  function isTU(u) { return Object.prototype.hasOwnProperty.call(TU, u); }
+  /* 回傳 {v: 數值（時間以秒計）, t: 1 表示時間、0 表示純數字}；空白回傳 null */
+  function evalTime(src) {
+    var s = src.replace(/×/g, "*").replace(/÷/g, "/").replace(/[−–]/g, "-").replace(/,/g, "").replace(/\s+/g, "");
+    var re = /(\d+\.?\d*|\.\d+)(\p{L}*)|([+\-*\/^()])|(.)/giu;
+    var t = [], m;
+    while ((m = re.exec(s)) !== null) {
+      if (m[1] !== undefined) {
+        var v = parseFloat(m[1]), u = m[2], tm = 0;
+        if (u) {
+          if (isTU(u)) { v *= TU[u]; tm = 1; }
+          else {
+            var e = EXP[norm(u)];
+            if (e === undefined) throw new Error("看不懂單位「" + u + "」");
+            v *= Math.pow(10, e);
+          }
+        }
+        var last = t[t.length - 1];
+        if (tm && last && last.n !== undefined && last.t === 1) last.n += v;
+        else t.push({ n: v, t: tm });
+      } else if (m[3]) {
+        t.push({ o: m[3] });
+      } else {
+        throw new Error("無法辨識「" + m[4] + "」");
+      }
+    }
+    if (!t.length) return null;
+    var i = 0;
+    function isOp(c) { return t[i] && t[i].o === c; }
+    function expr() {
+      var a = term();
+      while (isOp("+") || isOp("-")) {
+        var o = t[i++].o, b = term();
+        if (a.t !== b.t) throw new Error("時間不能和純數字相加減，請替數字加上單位");
+        a = { v: o === "+" ? a.v + b.v : a.v - b.v, t: a.t };
+      }
+      return a;
+    }
+    function term() {
+      var a = unary();
+      while (isOp("*") || isOp("/")) {
+        var o = t[i++].o, b = unary();
+        if (o === "*") {
+          if (a.t + b.t > 1) throw new Error("兩個時間不能相乘");
+          a = { v: a.v * b.v, t: a.t + b.t };
+        } else {
+          if (b.v === 0) throw new Error("不能除以 0");
+          if (a.t < b.t) throw new Error("不能用純數字除以時間");
+          a = { v: a.v / b.v, t: a.t - b.t };
+        }
+      }
+      return a;
+    }
+    function unary() {
+      if (isOp("-")) { i++; var a = unary(); return { v: -a.v, t: a.t }; }
+      if (isOp("+")) { i++; return unary(); }
+      return power();
+    }
+    function power() {
+      var b = atom();
+      if (isOp("^")) {
+        i++; var x = unary();
+        if (b.t || x.t) throw new Error("次方只能用在純數字");
+        return { v: Math.pow(b.v, x.v), t: 0 };
+      }
+      return b;
+    }
+    function atom() {
+      var k = t[i];
+      if (!k) throw new Error("算式不完整");
+      if (k.n !== undefined) { i++; return { v: k.n, t: k.t }; }
+      if (k.o === "(") {
+        i++; var v = expr();
+        if (!isOp(")")) throw new Error("缺少右括號");
+        i++; return v;
+      }
+      throw new Error("算式格式有誤");
+    }
+    var r = expr();
+    if (i < t.length) throw new Error("算式格式有誤");
+    if (!isFinite(r.v)) throw new Error("結果超出範圍");
+    return r;
+  }
+  function fmtPlain(x) {
+    if (Math.abs(x) < 1e15) return Number(x.toFixed(4)).toLocaleString("en-US", { maximumFractionDigits: 4 });
+    return fmt(x, "auto", true);
+  }
+  function fmtDurExact(sec) {
+    var neg = sec < 0 ? "-" : "";
+    var a = Math.round(Math.abs(sec) * 1000) / 1000;
+    if (a >= 3.15576e9) return neg + "約 " + fmtPlain(a / 31557600) + " 年";
+    var d = Math.floor(a / 86400), h = Math.floor(a % 86400 / 3600), mi = Math.floor(a % 3600 / 60);
+    var s = Math.round((a - Math.floor(a / 60) * 60) * 1000) / 1000;
+    var p = [];
+    if (d) p.push(d.toLocaleString("en-US") + " 天");
+    if (h) p.push(h + " 小時");
+    if (mi) p.push(mi + " 分");
+    if (s) p.push(s + " 秒");
+    return neg + (p.length ? p.join(" ") : "0 秒");
+  }
+  var TCONV = [["秒", 1], ["分鐘", 60], ["小時", 3600], ["天", 86400], ["週", 604800], ["年（365.25 天）", 31557600]];
+  function updateTime() {
+    var o = $("tOut"), f = $("tFull"), body = $("tBody"), tw = $("tTable");
+    body.innerHTML = "";
+    var r;
+    try { r = evalTime($("texpr").value); }
+    catch (e) { o.className = "big err"; o.textContent = e.message; f.textContent = ""; tw.hidden = true; return; }
+    if (r === null) { o.className = "big"; o.textContent = "—"; f.textContent = ""; tw.hidden = true; return; }
+    o.className = "big";
+    if (!r.t) {
+      o.textContent = fmt(r.v, "auto", true);
+      f.textContent = "= " + fullNumber(r.v) + "（純數字，沒有時間單位）";
+      tw.hidden = true;
+      return;
+    }
+    o.textContent = fmtDurExact(r.v);
+    f.textContent = "= " + fullNumber(r.v) + " 秒";
+    tw.hidden = false;
+    TCONV.forEach(function (c) {
+      var tr = document.createElement("tr");
+      var a = document.createElement("td"); a.textContent = c[0];
+      var b = document.createElement("td"); b.className = "v"; b.textContent = fmtPlain(r.v / c[1]);
+      tr.appendChild(a); tr.appendChild(b); body.appendChild(tr);
+    });
+  }
+
+  var TABS = ["calc", "income", "time"];
   function saveUi() {
-    var o = { tab: activeTab, income: {} };
+    var o = { tab: activeTab, income: {}, time: $("texpr").value };
     IDS.forEach(function (id) { o.income[id] = $(id).value; });
     lsSet(LS_UI, JSON.stringify(o));
   }
   var activeTab = "calc";
   function setTab(name, focus) {
     activeTab = name;
-    ["calc", "income"].forEach(function (n) {
+    TABS.forEach(function (n) {
       var on = n === name;
       $("tab-" + n).setAttribute("aria-selected", on ? "true" : "false");
       $("tab-" + n).tabIndex = on ? 0 : -1;
       $("view-" + n).hidden = !on;
     });
     if (focus) $("tab-" + name).focus();
-    if (name === "income") calcIncome(); else update();
+    if (name === "income") calcIncome(); else if (name === "time") updateTime(); else update();
     saveUi();
   }
 
@@ -675,7 +838,8 @@ th.r { text-align: right; }
           var f = document.activeElement;
           var tgt = (f && f.classList && f.classList.contains("in") && ["rate", "start", "target"].indexOf(f.id) >= 0) ? f : $("rate");
           insertInto(tgt, u[0]);
-        } else insertInto(inp, u[0]);
+        } else if (activeTab === "time") insertInto($("texpr"), u[0]);
+        else insertInto(inp, u[0]);
       });
       td1.appendChild(b);
       var td2 = document.createElement("td"); td2.className = "e"; td2.textContent = ENG[u[1]] || "—";
@@ -723,7 +887,7 @@ th.r { text-align: right; }
     BASE.forEach(function (u) { keysFor(u[0]).forEach(function (k) { EXP[k] = u[1]; }); });
     custom.forEach(function (u) { keysFor(u.n).forEach(function (k) { EXP[k] = u.e; }); });
     fillSelects(); renderRef(); renderManage();
-    update(); calcIncome();
+    update(); calcIncome(); updateTime();
   }
 
   /* ---------- 控制項 ---------- */
@@ -746,22 +910,36 @@ th.r { text-align: right; }
     ["1"],["2"],["3"],["−","op"],
     ["0"],[".","d"],["^","op"],["+","op"]
   ];
-  var pad = $("pad");
-  layout.forEach(function (k) {
-    var b = document.createElement("button"); b.type = "button";
-    var kind = k[1];
-    b.className = (kind === "clr" || kind === "bk") ? "act" + (kind === "clr" ? " clr" : "") : "key" + (kind === "op" ? " op" : "");
-    b.textContent = k[0];
-    b.addEventListener("click", function () {
-      if (kind === "clr") { inp.value = ""; inp.focus(); update(); }
-      else if (kind === "bk") backspace();
-      else insertInto(inp, k[0]);
+  function buildPad(pad, el, onEq) {
+    layout.forEach(function (k) {
+      var b = document.createElement("button"); b.type = "button";
+      var kind = k[1];
+      b.className = (kind === "clr" || kind === "bk") ? "act" + (kind === "clr" ? " clr" : "") : "key" + (kind === "op" ? " op" : "");
+      b.textContent = k[0];
+      b.addEventListener("click", function () {
+        if (kind === "clr") { el.value = ""; el.focus(); el.dispatchEvent(new Event("input", { bubbles: true })); }
+        else if (kind === "bk") backspaceOn(el);
+        else insertInto(el, k[0]);
+      });
+      pad.appendChild(b);
     });
-    pad.appendChild(b);
+    if (onEq) {
+      var eq = document.createElement("button"); eq.type = "button"; eq.className = "act eq"; eq.textContent = "=";
+      eq.addEventListener("click", onEq);
+      pad.appendChild(eq);
+    }
+  }
+  buildPad($("pad"), inp, commit);
+  buildPad($("tpad"), $("texpr"), null);
+
+  /* 時間計算機控制項 */
+  ["秒", "分", "時", "天", "週"].forEach(function (u) {
+    var b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = u;
+    b.setAttribute("aria-label", "插入 " + u);
+    b.addEventListener("click", function () { insertInto($("texpr"), u); });
+    $("tchips").appendChild(b);
   });
-  var eq = document.createElement("button"); eq.type = "button"; eq.className = "act eq"; eq.textContent = "=";
-  eq.addEventListener("click", commit);
-  pad.appendChild(eq);
+  $("texpr").addEventListener("input", function () { updateTime(); saveUi(); });
 
   /* 收益計算控制項 */
   var presets = [["1 分鐘", 1, 60], ["1 小時", 1, 3600], ["8 小時", 8, 3600], ["24 小時", 24, 3600], ["7 天", 7, 86400]];
@@ -784,12 +962,13 @@ th.r { text-align: right; }
   });
 
   /* 分頁 */
-  ["calc", "income"].forEach(function (n) {
+  TABS.forEach(function (n, idx) {
     $("tab-" + n).addEventListener("click", function () { setTab(n, false); });
     $("tab-" + n).addEventListener("keydown", function (e) {
       if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
         e.preventDefault();
-        setTab(n === "calc" ? "income" : "calc", true);
+        var step = e.key === "ArrowRight" ? 1 : TABS.length - 1;
+        setTab(TABS[(idx + step) % TABS.length], true);
       }
     });
   });
@@ -839,9 +1018,10 @@ th.r { text-align: right; }
   if (saved && saved.income) {
     IDS.forEach(function (id) { if (typeof saved.income[id] === "string") $(id).value = saved.income[id]; });
   }
+  if (saved && typeof saved.time === "string") $("texpr").value = saved.time;
   renderHist();
   rebuild();
-  setTab(saved && saved.tab === "income" ? "income" : "calc", false);
+  setTab(saved && TABS.indexOf(saved.tab) >= 0 ? saved.tab : "calc", false);
 })();
 </script>
 </body>

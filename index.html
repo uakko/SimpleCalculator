@@ -218,21 +218,34 @@ th.r { text-align: right; }
           <h2>收益設定（範例已填入）</h2>
 
           <div class="field">
-            <label class="cap" for="rate">收益速率</label>
+            <label class="cap" for="rate">每次收益</label>
             <div class="pair">
               <input id="rate" class="in" type="text" value="2.5Qa" autocomplete="off" autocapitalize="off" spellcheck="false">
-              <select id="period" aria-label="速率的時間單位">
-                <option value="1">每秒</option>
-                <option value="60">每分鐘</option>
-                <option value="3600">每小時</option>
-                <option value="86400">每天</option>
-              </select>
-            </div>
-            <div class="pair">
-              <span class="note">可直接輸入單位，例如 300Dc、1.2ΣA</span>
-              <select class="unitpick" data-target="rate" aria-label="插入單位到收益速率"></select>
+              <select class="unitpick" data-target="rate" aria-label="插入單位到每次收益"></select>
             </div>
             <div class="fe" id="err-rate" role="alert"></div>
+          </div>
+
+          <div class="field">
+            <label class="cap" for="ival">每隔多久一次（例如每 4 秒）</label>
+            <div class="pair t">
+              <input id="ival" class="in" type="text" value="4" inputmode="decimal" autocomplete="off">
+              <select id="ivalUnit" aria-label="間隔單位">
+                <option value="1" selected>秒</option>
+                <option value="60">分鐘</option>
+                <option value="3600">小時</option>
+                <option value="86400">天</option>
+              </select>
+            </div>
+            <div class="fe" id="err-ival" role="alert"></div>
+          </div>
+
+          <div class="field">
+            <label class="cap" for="mode">計算方式</label>
+            <select id="mode">
+              <option value="tick">完整次數（滿一個間隔才算一次）</option>
+              <option value="avg">平均速率（不捨去）</option>
+            </select>
           </div>
 
           <div class="field">
@@ -289,13 +302,13 @@ th.r { text-align: right; }
           <span class="cap">不同時間的收益（依上方速率與加成）</span>
           <div class="tbl">
             <table>
-              <thead><tr><th>時間</th><th class="r">收益</th></tr></thead>
+              <thead><tr><th>時間</th><th class="r">次數</th><th class="r">收益</th></tr></thead>
               <tbody id="iBody"></tbody>
             </table>
           </div>
         </div>
 
-        <p class="note">總收益 = 收益速率 ÷ 速率時間 × 持續時間 × 加成倍率。單位與右側對照表、自訂單位共用，修改自訂單位後這裡也會同步。</p>
+        <p class="note">總收益 = 每次收益 × 次數 × 加成倍率，次數 = 持續時間 ÷ 間隔。「完整次數」會把不足一個間隔的部分捨去，例如每 4 秒一次、持續 10 秒是 2 次；「平均速率」則不捨去（2.5 次）。單位與右側對照表、自訂單位共用，修改自訂單位後這裡也會同步。</p>
       </section>
 
       <!-- 分頁 3：時間計算機 -->
@@ -613,7 +626,7 @@ th.r { text-align: right; }
   }
 
   /* ---------- 分頁 2：收益計算 ---------- */
-  var IDS = ["rate", "period", "dur", "durUnit", "mult", "start", "target"];
+  var IDS = ["rate", "ival", "ivalUnit", "mode", "dur", "durUnit", "mult", "start", "target"];
   var BREAK = [["1 秒", 1], ["1 分鐘", 60], ["1 小時", 3600], ["8 小時", 28800], ["24 小時", 86400], ["7 天", 604800]];
   function field(id, label, allowEmpty, min) {
     var el = $(id), er = $("err-" + id), v = null;
@@ -635,20 +648,27 @@ th.r { text-align: right; }
     dl.appendChild(dt); dl.appendChild(dd);
   }
   function calcIncome() {
-    var rate = field("rate", "收益速率", false, 0);
+    var rate = field("rate", "每次收益", false, 0);
+    var ival = field("ival", "間隔", false, 0);
     var dur = field("dur", "持續時間", false, 0);
     var mult = field("mult", "加成倍率", false, 0);
     var start = field("start", "起始數量", false, 0);
     var target = field("target", "目標數量", true, 0);
+    if (ival === 0) { $("err-ival").textContent = "間隔要大於 0。"; ival = NaN; }
     var tot = $("iTotal"), tf = $("iFull"), kv = $("iKv"), body = $("iBody");
     kv.innerHTML = ""; body.innerHTML = "";
-    if ([rate, dur, mult, start].some(function (x) { return x !== x; }) || target !== target) {
+    if ([rate, ival, dur, mult, start].some(function (x) { return x !== x; }) || target !== target) {
       tot.className = "big err"; tot.textContent = "請修正上方標示的欄位"; tf.textContent = "";
       return;
     }
-    var perSec = rate / Number($("period").value) * mult;
+    var tick = $("mode").value === "tick";
+    var step = ival * Number($("ivalUnit").value);   /* 間隔，單位：秒 */
     var secs = dur * Number($("durUnit").value);
-    var gain = perSec * secs;
+    var each = rate * mult;                           /* 每次實得 */
+    var perSec = each / step;
+    function countIn(s) { return Math.floor(s / step * (1 + 1e-12)); }
+    var ticks = tick ? countIn(secs) : secs / step;
+    var gain = each * ticks;
     var fin = start + gain;
     if (!isFinite(gain) || !isFinite(fin)) {
       tot.className = "big err"; tot.textContent = "結果超出範圍"; tf.textContent = ""; return;
@@ -656,22 +676,32 @@ th.r { text-align: right; }
     tot.className = "big";
     tot.textContent = fmt(gain, "auto", true);
     tf.textContent = "= " + fullNumber(gain);
-    kvRow(kv, "每秒", fmt(perSec, "auto", true));
-    kvRow(kv, "持續時間", fmtDuration(secs));
+    kvRow(kv, "間隔", "每 " + fmtDurExact(step) + " 一次");
+    kvRow(kv, "次數", (tick ? "" : "約 ") + fmtPlain(ticks) + " 次");
+    kvRow(kv, "每秒平均", fmt(perSec, "auto", true));
+    kvRow(kv, "持續時間", fmtDurExact(secs));
     if (start > 0) kvRow(kv, "最終數量", fmt(fin, "auto", true));
     if (target !== null) {
       var need = target - start;
       if (need <= 0) kvRow(kv, "達成目標", "起始數量已達標");
-      else if (perSec <= 0) kvRow(kv, "達成目標", "收益為 0，無法達成");
-      else kvRow(kv, "達成目標", fmtDuration(need / perSec));
+      else if (each <= 0) kvRow(kv, "達成目標", "收益為 0，無法達成");
+      else if (tick) {
+        var n = Math.ceil(need / each * (1 - 1e-12));
+        kvRow(kv, "達成目標", "共 " + fmtPlain(n) + " 次，需要 " + fmtDurExact(n * step));
+      } else kvRow(kv, "達成目標", fmtDurExact(need / perSec));
     }
     BREAK.forEach(function (b) {
+      var c = tick ? countIn(b[1]) : null;
       var tr = document.createElement("tr");
       var a = document.createElement("td"); a.textContent = b[0];
-      var c = document.createElement("td"); c.className = "v"; c.textContent = fmt(perSec * b[1], "auto", true);
-      tr.appendChild(a); tr.appendChild(c); body.appendChild(tr);
+      var k = document.createElement("td"); k.className = "v"; k.style.color = "var(--muted)"; k.style.fontWeight = "400";
+      k.textContent = tick ? fmtPlain(c) : "—";
+      var v = document.createElement("td"); v.className = "v";
+      v.textContent = fmt(tick ? each * c : perSec * b[1], "auto", true);
+      tr.appendChild(a); tr.appendChild(k); tr.appendChild(v); body.appendChild(tr);
     });
   }
+
   /* ---------- 分頁 3：時間計算機 ---------- */
   var TU = {s:1,S:1,sec:1,"秒":1,m:60,min:60,"分":60,"分鐘":60,h:3600,H:3600,hr:3600,"時":3600,"小時":3600,d:86400,D:86400,day:86400,"天":86400,"日":86400,w:604800,W:604800,wk:604800,"週":604800,"周":604800};
   function isTU(u) { return Object.prototype.hasOwnProperty.call(TU, u); }

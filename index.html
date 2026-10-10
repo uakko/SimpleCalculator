@@ -209,7 +209,7 @@ th.r { text-align: right; }
           <p class="empty" id="histEmpty">按 = 或 Enter 後會記錄在這裡。</p>
         </div>
 
-        <p class="note">內建 K、M、B、T、Qa、Qi、Sx、Sp、Oc、No、Dc，大小寫皆可。Dc 以上的單位可在右側「自訂單位」新增或修改，預設為 ΣA 到 ΣD（鍵盤打不出 Σ 時，可用 SA 到 SD 代替）。支援 + − × ÷ ^ 與括號。數值使用雙精度浮點數，超過 9×10¹⁵ 的完整數字為近似值。</p>
+        <p class="note">內建 K、M、B、T、Qa、Qi、Sx、Sp、Oc、No、Dc，大小寫皆可。Dc 以上的單位可在右側「自訂單位」新增或修改，預設為 ΣA 到 ΣS（共 19 級，每級 ×1000，ΣA = 10³⁶、ΣS = 10⁹⁰）。鍵盤打不出 Σ 時，可用 SA 到 SS 代替，也可以用 ∑；只有 ΣP 例外，SP 已是 Sp（Septillion），請輸入 ΣP。支援 + − × ÷ ^ 與括號。數值使用雙精度浮點數，超過 9×10¹⁵ 的完整數字為近似值。</p>
       </section>
 
       <!-- 分頁 2：收益計算 -->
@@ -373,7 +373,7 @@ th.r { text-align: right; }
 (function () {
   "use strict";
   var BASE = [["K",3],["M",6],["B",9],["T",12],["Qa",15],["Qi",18],["Sx",21],["Sp",24],["Oc",27],["No",30],["Dc",33]];
-  var ENG = {3:"Thousand",6:"Million",9:"Billion",12:"Trillion",15:"Quadrillion",18:"Quintillion",21:"Sextillion",24:"Septillion",27:"Octillion",30:"Nonillion",33:"Decillion",36:"Undecillion",39:"Duodecillion",42:"Tredecillion",45:"Quattuordecillion",48:"Quindecillion",51:"Sexdecillion",54:"Septendecillion",57:"Octodecillion",60:"Novemdecillion",63:"Vigintillion",303:"Centillion"};
+  var ENG = {3:"Thousand",6:"Million",9:"Billion",12:"Trillion",15:"Quadrillion",18:"Quintillion",21:"Sextillion",24:"Septillion",27:"Octillion",30:"Nonillion",33:"Decillion",36:"Undecillion",39:"Duodecillion",42:"Tredecillion",45:"Quattuordecillion",48:"Quindecillion",51:"Sexdecillion",54:"Septendecillion",57:"Octodecillion",60:"Novemdecillion",63:"Vigintillion",66:"Unvigintillion",69:"Duovigintillion",72:"Tresvigintillion",75:"Quattuorvigintillion",78:"Quinvigintillion",81:"Sesvigintillion",84:"Septemvigintillion",87:"Octovigintillion",90:"Novemvigintillion",303:"Centillion"};
   var ZH = ["","萬","億","兆","京","垓","秭","穰","溝","澗","正","載","極","恆河沙","阿僧祇","那由他","不可思議","無量大數"];
   var SUP = { "0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹" };
   var MIN_E = 34, MAX_E = 300;
@@ -397,11 +397,18 @@ th.r { text-align: right; }
   var current = null;
 
   /* ---------- 單位資料 ---------- */
-  function defaultCustom() { return [{n:"ΣA",e:36},{n:"ΣB",e:39},{n:"ΣC",e:42},{n:"ΣD",e:45}]; }
-  function norm(s) { return s.toLowerCase().replace(/ς/g, "σ"); }
+  /* 預設：ΣA 到 ΣS，共 19 級，ΣA = 10^36，每級 ×1000，ΣS = 10^90 */
+  function defaultCustom() {
+    var a = [];
+    for (var i = 0; i < 19; i++) a.push({ n: "Σ" + String.fromCharCode(65 + i), e: 36 + 3 * i });
+    return a;
+  }
+  /* ∑（求和符號）和 Σ（希臘字母）視為同一個字 */
+  function norm(s) { return s.replace(/∑/g, "Σ").toLowerCase().replace(/ς/g, "σ"); }
+  /* 第一個是正式名稱，之後是別名（Σ 開頭的單位可用 S 代替，例如 SA） */
   function keysFor(name) {
     var k = [norm(name)];
-    if (/^[Σσ]/.test(name) && name.length > 1) k.push(norm("s" + name.slice(1)));
+    if (/^[Σσ∑]/.test(name) && name.length > 1) k.push(norm("s" + name.slice(1)));
     return k;
   }
   var custom = defaultCustom();
@@ -410,8 +417,8 @@ th.r { text-align: right; }
     if (!/^\d+$/.test(String(eStr).trim())) return "次方請輸入整數。";
     var e = parseInt(eStr, 10);
     if (e < MIN_E || e > MAX_E) return "次方請輸入 " + MIN_E + " 到 " + MAX_E + " 之間（Dc 是 33 次方，自訂從 34 起）。";
-    var mine = keysFor(name), taken = null;
-    function scan(n) { keysFor(n).forEach(function (k) { if (mine.indexOf(k) >= 0) taken = n; }); }
+    var mine = norm(name), taken = null;
+    function scan(n) { if (norm(n) === mine) taken = n; }
     BASE.forEach(function (u) { scan(u[0]); });
     custom.forEach(function (u, i) { if (i !== ignore) scan(u.n); });
     if (taken) return "「" + name + "」和現有單位「" + taken + "」衝突，請換一個名稱。";
@@ -432,7 +439,14 @@ th.r { text-align: right; }
   (function () {
     var s = lsGet(LS_UNITS);
     if (!s) return;
-    try { var a = sanitize(JSON.parse(s)); if (a) custom = a; } catch (e) {}
+    try {
+      var a = sanitize(JSON.parse(s));
+      if (a) {
+        custom = a;
+        /* 舊版預設只有 ΣA 到 ΣD，沒有改過的話直接換成新預設 */
+        if (a.map(function (u) { return u.n + u.e; }).join() === "ΣA36,ΣB39,ΣC42,ΣD45") custom = defaultCustom();
+      }
+    } catch (e) {}
   })();
   function saveUnits() { lsSet(LS_UNITS, JSON.stringify(custom)); }
 
@@ -447,7 +461,7 @@ th.r { text-align: right; }
   /* ---------- 解析與計算 ---------- */
   function tokenize(src) {
     var s = src.replace(/×/g, "*").replace(/÷/g, "/").replace(/[−–]/g, "-").replace(/,/g, "").replace(/\s+/g, "");
-    var re = /(\d+\.?\d*|\.\d+)(\p{L}*)|([+\-*\/^()])|(.)/giu;
+    var re = /(\d+\.?\d*|\.\d+)((?:\p{L}|∑)*)|([+\-*\/^()])|(.)/giu;
     var t = [], m;
     while ((m = re.exec(s)) !== null) {
       if (m[1] !== undefined) {
@@ -664,7 +678,7 @@ th.r { text-align: right; }
   /* 回傳 {v: 數值（時間以秒計）, t: 1 表示時間、0 表示純數字}；空白回傳 null */
   function evalTime(src) {
     var s = src.replace(/×/g, "*").replace(/÷/g, "/").replace(/[−–]/g, "-").replace(/,/g, "").replace(/\s+/g, "");
-    var re = /(\d+\.?\d*|\.\d+)(\p{L}*)|([+\-*\/^()])|(.)/giu;
+    var re = /(\d+\.?\d*|\.\d+)((?:\p{L}|∑)*)|([+\-*\/^()])|(.)/giu;
     var t = [], m;
     while ((m = re.exec(s)) !== null) {
       if (m[1] !== undefined) {
@@ -884,8 +898,12 @@ th.r { text-align: right; }
     list.sort(function (a, b) { return a.e - b.e || a.o - b.o; });
     UNITS = list.map(function (x) { return [x.n, x.e]; });
     EXP = Object.create(null);
-    BASE.forEach(function (u) { keysFor(u[0]).forEach(function (k) { EXP[k] = u[1]; }); });
-    custom.forEach(function (u) { keysFor(u.n).forEach(function (k) { EXP[k] = u.e; }); });
+    BASE.forEach(function (u) { EXP[norm(u[0])] = u[1]; });
+    custom.forEach(function (u) { EXP[norm(u.n)] = u.e; });
+    /* 別名（SA、SB…）排最後，已被正式名稱占用的不覆蓋，例如 SP 仍是 Sp（Septillion） */
+    custom.forEach(function (u) {
+      keysFor(u.n).slice(1).forEach(function (k) { if (EXP[k] === undefined) EXP[k] = u.e; });
+    });
     fillSelects(); renderRef(); renderManage();
     update(); calcIncome(); updateTime();
   }
@@ -1008,7 +1026,7 @@ th.r { text-align: right; }
     }
     clearTimeout(armed); armed = null; resetBtn.textContent = "還原 Σ 預設";
     custom = defaultCustom();
-    showMsg("已還原為 ΣA 到 ΣD。", false);
+    showMsg("已還原為 ΣA 到 ΣS。", false);
     saveUnits(); rebuild();
   });
 

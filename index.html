@@ -8,7 +8,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#202020">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b6e66'/%3E%3Ctext x='32' y='44' font-size='34' font-family='monospace' font-weight='700' text-anchor='middle' fill='white'%3EKM%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23202020'/%3E%3Ctext x='32' y='44' font-size='34' font-family='monospace' font-weight='700' text-anchor='middle' fill='%234cc2ff'%3EKM%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
@@ -16,52 +16,52 @@
 /* Layout: 頂部分頁切換（計算機／收益計算）；左欄為目前分頁內容，右欄固定為單位對照表與自訂單位管理；窄螢幕改為單欄 */
 :root {
   color-scheme: light;
-  --bg: #eef1f4;
-  --surface: #ffffff;
-  --surface-2: #e4e9ee;
-  --fg: #16202a;
-  --muted: #5d6b79;
-  --line: #cfd7df;
-  --accent: #0b6e66;
+  --bg: #e6e6e6;
+  --surface: #f6f6f6;
+  --surface-2: #dcdcdc;
+  --fg: #1b1b1b;
+  --muted: #5f5f5f;
+  --line: #d3d3d3;
+  --accent: #0067c0;
   --accent-fg: #ffffff;
-  --accent-soft: #d7efec;
-  --wc-bg: #f3f3f3; --wc-key: #ffffff; --wc-key-op: #e9e9e9; --wc-text: #1b1b1b; --wc-muted: #5f5f5f;
-  --wc-eq: #0067c0; --wc-eq-fg: #ffffff; --wc-line: #d6d6d6;
-  --danger: #b3261e;
+  --accent-soft: #d9e8f6;
+  --wc-bg: #f6f6f6; --wc-key: #ffffff; --wc-key-op: #e9e9e9; --wc-text: #1b1b1b; --wc-muted: #5f5f5f;
+  --wc-eq: #0067c0; --wc-eq-fg: #ffffff; --wc-line: #d3d3d3;
+  --danger: #c42b1c;
   --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
   --font-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #11181f;
-    --surface: #1a232c;
-    --surface-2: #26323d;
-    --fg: #e6edf3;
-    --muted: #94a3b2;
-    --line: #33414e;
-    --accent: #3cc3b4;
-    --accent-fg: #06201d;
-    --accent-soft: #17413d;
+    --bg: #181818;
+    --surface: #202020;
+    --surface-2: #323232;
+    --fg: #f2f2f2;
+    --muted: #a0a0a0;
+    --line: #3a3a3a;
+    --accent: #4cc2ff;
+    --accent-fg: #000000;
+    --accent-soft: #1d3b52;
     --wc-bg: #202020; --wc-key: #3b3b3b; --wc-key-op: #323232; --wc-text: #ffffff; --wc-muted: #a0a0a0;
     --wc-eq: #4cc2ff; --wc-eq-fg: #000000; --wc-line: #3a3a3a;
-    --danger: #ff8a80;
+    --danger: #ff99a4;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #11181f;
-  --surface: #1a232c;
-  --surface-2: #26323d;
-  --fg: #e6edf3;
-  --muted: #94a3b2;
-  --line: #33414e;
-  --accent: #3cc3b4;
-  --accent-fg: #06201d;
-  --accent-soft: #17413d;
+  --bg: #181818;
+  --surface: #202020;
+  --surface-2: #323232;
+  --fg: #f2f2f2;
+  --muted: #a0a0a0;
+  --line: #3a3a3a;
+  --accent: #4cc2ff;
+  --accent-fg: #000000;
+  --accent-soft: #1d3b52;
   --wc-bg: #202020; --wc-key: #3b3b3b; --wc-key-op: #323232; --wc-text: #ffffff; --wc-muted: #a0a0a0;
   --wc-eq: #4cc2ff; --wc-eq-fg: #000000; --wc-line: #3a3a3a;
-  --danger: #ff8a80;
+  --danger: #ff99a4;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -142,6 +142,7 @@ select { font-family: var(--font-body); }
 .bad { color: var(--danger); }
 .fe { color: var(--danger); font-size: .78rem; }
 .fe:empty { display: none; }
+.panel > .field { flex: none; }
 
 .tbl { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: .88rem; }

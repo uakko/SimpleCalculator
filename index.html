@@ -235,7 +235,7 @@ th.r { text-align: right; }
             </div>
           </div>
           <div class="wc-display">
-            <input id="expr" class="in" type="text" value="1.5Qa + 300T * 2" aria-label="算式" placeholder="輸入算式，例如 1.5Qa + 300T" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="out">
+            <input id="expr" class="in" type="text" value="" aria-label="算式" placeholder="輸入算式" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="out">
             <div id="out" class="big" aria-live="polite">—</div>
             <div id="full" class="sub"></div>
           </div>
@@ -257,21 +257,21 @@ th.r { text-align: right; }
       <!-- 分頁 2：收益計算 -->
       <section id="view-income" role="tabpanel" aria-labelledby="tab-income" class="app" hidden>
         <div class="panel">
-          <h2>收益設定（範例已填入）</h2>
+          <h2>收益設定</h2>
 
           <div class="field">
             <label class="cap" for="rate">每次收益</label>
             <div class="pair">
-              <input id="rate" class="in" type="text" value="2.5Qa" autocomplete="off" autocapitalize="off" spellcheck="false">
+              <input id="rate" class="in" type="text" value="" autocomplete="off" autocapitalize="off" spellcheck="false">
               <select class="unitpick" data-target="rate" aria-label="插入單位到每次收益"></select>
             </div>
             <div class="fe" id="err-rate" role="alert"></div>
           </div>
 
           <div class="field">
-            <label class="cap" for="ival">每隔多久一次（例如每 4 秒）</label>
+            <label class="cap" for="ival">每隔多久一次</label>
             <div class="pair t">
-              <input id="ival" class="in" type="text" value="4" inputmode="decimal" autocomplete="off">
+              <input id="ival" class="in" type="text" value="1" inputmode="decimal" autocomplete="off">
               <select id="ivalUnit" aria-label="間隔單位">
                 <option value="1" selected>秒</option>
                 <option value="60">分鐘</option>
@@ -293,7 +293,7 @@ th.r { text-align: right; }
           <div class="field">
             <label class="cap" for="dur">持續時間</label>
             <div class="pair t">
-              <input id="dur" class="in" type="text" value="8" inputmode="decimal" autocomplete="off">
+              <input id="dur" class="in" type="text" value="" inputmode="decimal" autocomplete="off">
               <select id="durUnit" aria-label="持續時間單位">
                 <option value="1">秒</option>
                 <option value="60">分鐘</option>
@@ -324,7 +324,7 @@ th.r { text-align: right; }
           <div class="field">
             <label class="cap" for="target">目標數量（選填，算出需要多久）</label>
             <div class="pair">
-              <input id="target" class="in" type="text" value="" placeholder="例如 5ΣA" autocomplete="off" autocapitalize="off" spellcheck="false">
+              <input id="target" class="in" type="text" value="" placeholder="選填" autocomplete="off" autocapitalize="off" spellcheck="false">
               <select class="unitpick" data-target="target" aria-label="插入單位到目標數量"></select>
             </div>
             <div class="fe" id="err-target" role="alert"></div>
@@ -356,8 +356,8 @@ th.r { text-align: right; }
       <!-- 分頁 3：時間計算機 -->
       <section id="view-time" role="tabpanel" aria-labelledby="tab-time" class="app" hidden>
         <div class="panel">
-          <label class="cap" for="texpr">時間算式（範例已填入，可直接修改）</label>
-          <input id="texpr" class="in" type="text" value="100秒*200" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="tOut">
+          <label class="cap" for="texpr">時間算式</label>
+          <input id="texpr" class="in" type="text" value="" placeholder="輸入時間算式" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="tOut">
           <div class="result">
             <div id="tOut" class="big" aria-live="polite">—</div>
             <div id="tFull" class="sub"></div>
@@ -408,9 +408,9 @@ th.r { text-align: right; }
         <label class="cap" for="quick">新增單位（可先從英文名稱帶入次方）</label>
         <select id="quick"></select>
         <div class="mrow">
-          <input id="addName" class="in" type="text" maxlength="8" placeholder="名稱，如 N" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="新單位名稱">
+          <input id="addName" class="in" type="text" maxlength="8" placeholder="名稱" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="新單位名稱">
           <span class="pw">10^</span>
-          <input id="addExp" class="in" type="number" min="34" max="300" inputmode="numeric" placeholder="60" aria-label="新單位次方">
+          <input id="addExp" class="in" type="number" min="34" max="300" inputmode="numeric" placeholder="次方" aria-label="新單位次方">
           <button id="addBtn" class="btn main" type="button">新增</button>
         </div>
         <p class="note" id="hint"></p>
@@ -433,7 +433,7 @@ th.r { text-align: right; }
   var SUP = { "0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹" };
   var MIN_E = 34, MAX_E = 300;
   var LS_UNITS = "kmbt-custom-units-v1";
-  var LS_UI = "kmbt-ui-v1";
+  var LS_UI = "kmbt-ui-v2";
 
   function $(id) { return document.getElementById(id); }
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -692,6 +692,13 @@ th.r { text-align: right; }
     dl.appendChild(dt); dl.appendChild(dd);
   }
   function calcIncome() {
+    if (!$("rate").value.trim() || !$("dur").value.trim()) {
+      ["rate", "ival", "dur", "mult", "start", "target"].forEach(function (id) { $("err-" + id).textContent = ""; });
+      $("iKv").innerHTML = ""; $("iBody").innerHTML = "";
+      $("iTotal").className = "big"; $("iTotal").textContent = "—";
+      $("iFull").textContent = "輸入每次收益和持續時間後顯示結果";
+      return;
+    }
     var rate = field("rate", "每次收益", false, 0);
     var ival = field("ival", "間隔", false, 0);
     var dur = field("dur", "持續時間", false, 0);
